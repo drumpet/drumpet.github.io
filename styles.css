@@ -1,0 +1,170 @@
+/*
+ * Minimalist CSS - Compatible with older browsers
+ * Inspired by SSI's clean design aesthetic
+ */
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 100%;
+}
+
+body {
+    font-family: Georgia, "Times New Roman", Times, serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background-color: #ffffff;
+    padding: 20px;
+}
+
+/* Container */
+.container {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* Profile photo */
+.profile-photo {
+    margin-bottom: 32px;
+}
+
+.profile-photo img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+}
+
+/* Profile info */
+.profile-info {
+    margin-bottom: 32px;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: normal;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+}
+
+.title,
+.education {
+    font-size: 16px;
+    color: #666666;
+    margin-bottom: 4px;
+}
+
+.social {
+    margin-top: 12px;
+}
+
+.social a {
+    color: #666666;
+    text-decoration: none;
+}
+
+.social a:hover {
+    color: #1a1a1a;
+}
+
+.social svg {
+    vertical-align: middle;
+}
+
+/* Links */
+a {
+    color: #1a1a1a;
+    text-decoration: underline;
+}
+
+a:hover {
+    color: #666666;
+}
+
+a:visited {
+    color: #1a1a1a;
+}
+
+/* Bio section */
+.bio {
+    border-top: 1px solid #e5e5e5;
+    padding-top: 32px;
+}
+
+.bio p {
+    font-size: 16px;
+    color: #444444;
+    text-align: justify;
+}
+
+/* 404 page styles */
+.error-page {
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.error-page h1 {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.error-page p {
+    font-size: 18px;
+    color: #666666;
+    margin-bottom: 24px;
+}
+
+.error-page a {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #1a1a1a;
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.error-page a:hover {
+    background-color: #333333;
+}
+
+.error-page a:visited {
+    color: #ffffff;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 20px 10px;
+    }
+
+    h1 {
+        font-size: 20px;
+    }
+}
+
+/* Print styles */
+@media print {
+    body {
+        background-color: #ffffff;
+        color: #000000;
+    }
+
+    a {
+        text-decoration: none;
+        color: #000000;
+    }
+
+    .social {
+        display: none;
+    }
+}
