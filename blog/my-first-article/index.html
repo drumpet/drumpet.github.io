@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>My First Article - Anthony Paek</title>
+    <meta name="description" content="Welcome to my blog. This is a sample article.">
+    <link rel="stylesheet" href="../../styles.css">
+    <link rel="icon" href="../../favicon.ico">
+    <!--[if lt IE 9]>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+<body>
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <a href="../../">Anthony Paek</a> / <a href="../">Blog</a> / My First Article
+            </nav>
+
+            <article class="article">
+                <header class="article-header">
+                    <h1>My First Article</h1>
+                    <time datetime="2024-05-01">May 1, 2024</time>
+                </header>
+
+                <div class="article-body">
+                    <p>Welcome to my blog. This is a sample article to demonstrate the simple blogging system.</p>
+
+                    <p>Each article lives in its own directory under <code>/blog/</code>. This makes it easy to organize assets like images alongside the article content.</p>
+
+                    <h2>How This Works</h2>
+
+                    <p>The structure is simple:</p>
+
+                    <pre>
+blog/
+  index.html          (blog listing)
+  my-first-article/
+    index.html        (this article)
+    image.jpg         (any assets go here)
+  another-article/
+    index.html
+    photo.png
+                    </pre>
+
+                    <p>To add a new article:</p>
+
+                    <ol>
+                        <li>Create a new directory under <code>/blog/</code></li>
+                        <li>Add an <code>index.html</code> file with your content</li>
+                        <li>Place any images or assets in the same directory</li>
+                        <li>Add a link to the article in <code>/blog/index.html</code></li>
+                    </ol>
+
+                    <p>That's it. No build step, no CMS, just files and folders.</p>
+                </div>
+
+                <footer class="article-footer">
+                    <a href="../">&larr; Back to Blog</a>
+                </footer>
+            </article>
+        </div>
+    </main>
+</body>
+</html>
