@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{TITLE}} - Anthony Paek</title>
+    <meta name="description" content="{{DESCRIPTION}}">
+    <link rel="stylesheet" href="../../styles.css">
+    <link rel="icon" href="../../favicon.ico">
+    <!--[if lt IE 9]>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+<body>
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <a href="../../">Anthony Paek</a> / <a href="../">Blog</a> / {{TITLE}}
+            </nav>
+
+            <article class="article">
+                <header class="article-header">
+                    <h1>{{TITLE}}</h1>
+                    <time datetime="{{DATE_ISO}}">{{DATE_DISPLAY}}</time>
+                </header>
+
+                <div class="article-body">
+                    {{CONTENT}}
+                </div>
+
+                <footer class="article-footer">
+                    <a href="../">&larr; Back to Blog</a>
+                </footer>
+            </article>
+        </div>
+    </main>
+</body>
+</html>
+
+<!--
+TEMPLATE INSTRUCTIONS FOR AI AGENTS
+===================================
+
+To create a new article:
+
+1. Create a new directory under /blog/ with format: YYYY-MM-DD-article-slug/
+   Example: /blog/2024-05-15-my-new-article/
+
+2. Copy this template to the new directory as index.html
+
+3. Replace these placeholders:
+   - {{TITLE}}        : Article title (e.g., "My New Article")
+   - {{DESCRIPTION}}  : Brief description for meta tag
+   - {{DATE_ISO}}     : Date in ISO format (e.g., "2024-05-15")
+   - {{DATE_DISPLAY}} : Date for display (e.g., "May 15, 2024")
+   - {{CONTENT}}      : Article body HTML content
+
+4. Add any images/assets to the same directory
+
+5. Add an entry to /blog/index.html:
+   <article class="article-preview">
+       <a href="YYYY-MM-DD-article-slug/">
+           <h2>Article Title</h2>
+           <time datetime="YYYY-MM-DD">Month Day, Year</time>
+           <p>Brief description...</p>
+       </a>
+   </article>
+
+6. Add an entry to the main /index.html blog list:
+   <li>
+       <a href="blog/YYYY-MM-DD-article-slug/">Article Title</a>
+       <time datetime="YYYY-MM-DD">Month Day, Year</time>
+   </li>
+
+CONTENT FORMATTING
+==================
+
+Paragraphs:
+<p>Your paragraph text here.</p>
+
+Headings:
+<h2>Section Heading</h2>
+<h3>Subsection Heading</h3>
+
+Lists:
+<ul>
+    <li>Unordered item</li>
+</ul>
+<ol>
+    <li>Ordered item</li>
+</ol>
+
+Blockquote:
+<blockquote>
+    <p>Quoted text here.</p>
+</blockquote>
+
+Code:
+<code>inline code</code>
+<pre>
+code block
+</pre>
+
+Images (place in same directory):
+<img src="image.jpg" alt="Description">
+
+Links:
+<a href="https://example.com">Link text</a>
+-->
