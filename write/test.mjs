@@ -243,3 +243,28 @@ test('requests bypass the HTTP cache so the sha is never stale', async () => {
   assert.equal(inits.length, 1);
   assert.equal(inits[0].cache, 'no-store');
 });
+
+import { DEFAULTS, mergeSettings, activeProvider, isConfigured } from './settings.js';
+
+test('mergeSettings keeps defaults and ignores unknown keys', () => {
+  const s = mergeSettings(DEFAULTS, { provider: 'local', local: { model: 'llama3' }, bogus: 1 });
+  assert.equal(s.provider, 'local');
+  assert.equal(s.local.model, 'llama3');
+  assert.equal(s.local.baseUrl, 'http://localhost:11434/v1');
+  assert.equal(s.anthropic.model, 'claude-opus-5-5');
+  assert.equal(s.bogus, undefined);
+});
+
+test('activeProvider and isConfigured', () => {
+  const s = mergeSettings(DEFAULTS, { github: { token: 't' } });
+  assert.equal(isConfigured(s), false);                       // anthropic needs key
+  s.anthropic.apiKey = 'k';
+  assert.equal(isConfigured(s), true);
+  assert.deepEqual(activeProvider(s), { provider: 'anthropic', apiKey: 'k', model: 'claude-opus-5-5', baseUrl: '' });
+  s.provider = 'local'; s.local.model = '';
+  assert.equal(isConfigured(s), false);                       // local needs model
+  s.local.model = 'llama3';
+  assert.equal(isConfigured(s), true);                        // local needs no key
+  s.github.token = '';
+  assert.equal(isConfigured(s), false);
+});
