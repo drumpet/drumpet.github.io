@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  {% if page.title %}<title>{{ page.title }} · Anthony Paek</title>{% else %}<title>Anthony Paek | 백승욱</title>{% endif %}
+  {% if page.title %}<title>{{ page.title | escape }} · Anthony Paek</title>{% else %}<title>Anthony Paek | 백승욱</title>{% endif %}
   {% assign desc = page.description | default: site.description %}
   <meta name="description" content="{{ desc | strip_html | strip_newlines | escape }}">
   <meta property="og:type" content="{% if page.layout == 'post' %}article{% else %}profile{% endif %}">

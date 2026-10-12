@@ -1,4 +1,3 @@
-import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
 import {
   parseFrontmatter, serializePost, slugify, defaultSlug, slugFromPostPath, postFilename,
   extractDraft, visibleText, buildUserContent, buildSystemPrompt, buildHistory, todayISO,
@@ -21,6 +20,12 @@ const els = {
 const FIELD_KEYS = ['title', 'date', 'lang', 'description'];
 const BUFFER_PREFIX = 'write.buffer.';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
+const RAW_HTML_RISK = /<script\b|<iframe\b|<object\b|<embed\b|\son\w+\s*=|javascript:/i;
+
+// Pinned and loaded lazily so the editor still works when the CDN is unreachable.
+const MARKED_URL = 'https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.esm.js';
+let markedPromise = null;
+function getMarked() { return (markedPromise ||= import(MARKED_URL).then((m) => m.marked)); }
 
 let settings = loadSettings();
 let gh = settings.github.token ? createGitHub(settings.github.token) : null;
@@ -121,7 +126,15 @@ function addSystemLine(text, error = false) {
   renderChat();
 }
 
-function renderPreview() {
+async function renderPreview() {
+  let marked;
+  try {
+    marked = await getMarked();
+  } catch {
+    markedPromise = null;   // retry on the next preview
+    els.preview.srcdoc = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><p>미리보기 라이브러리를 불러오지 못했습니다.</p></body></html>';
+    return;
+  }
   const css = new URL('/style.css', location.href).href;
   const html = marked.parse(state.doc.body || '');
   els.preview.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${css}"></head><body><main><section class="post"><article class="post-body">${html}</article></section></main></body></html>`;
@@ -465,6 +478,18 @@ async function publish() {
   if (d.kind === 'post' && !d.publishedPath && findPublishedPath(d.slug)) {
     return fail('같은 slug로 발행된 글이 있습니다. 글 선택에서 그 글을 열어 수정하세요.');
   }
+  if (RAW_HTML_RISK.test(d.body)) {
+    showBanner('본문에 스크립트나 이벤트 핸들러로 보이는 HTML이 있습니다. 그대로 발행하면 사이트 방문자(그리고 이 에디터)의 브라우저에서 실행됩니다. 그래도 발행할까요?', [
+      ['발행', () => { doPublish(); }],
+      ['취소', () => {}],
+    ]);
+    return;
+  }
+  return doPublish();
+}
+
+async function doPublish() {
+  const d = state.doc;
   if (!(await save())) return;
   if (state.dirty) return fail('저장 중 변경이 생겼습니다. 다시 저장 후 발행하세요.');
 

@@ -20,8 +20,8 @@ layout: default
 <section>
   <a class="featured" href="{{ latest.url }}">
     <p class="eyebrow">Latest</p>
-    <p class="title">{{ latest.title }}</p>
-    {% if latest.description %}<p class="muted">{{ latest.description }}</p>{% endif %}
+    <p class="title">{{ latest.title | escape }}</p>
+    {% if latest.description %}<p class="muted">{{ latest.description | escape }}</p>{% endif %}
     <p class="muted small"><time datetime="{{ latest.date | date: '%Y-%m-%d' }}">{{ latest.date | date: '%Y-%m-%d' }}</time> · Read →</p>
   </a>
 </section>
@@ -37,7 +37,7 @@ layout: default
   <p class="eyebrow">Writing</p>
   <ul class="posts">
   {% for post in site.posts offset:1 %}
-    <li><a href="{{ post.url }}">{{ post.title }}</a><time class="muted" datetime="{{ post.date | date: '%Y-%m-%d' }}">{{ post.date | date: '%Y-%m-%d' }}</time></li>
+    <li><a href="{{ post.url }}">{{ post.title | escape }}</a><time class="muted" datetime="{{ post.date | date: '%Y-%m-%d' }}">{{ post.date | date: '%Y-%m-%d' }}</time></li>
   {% endfor %}
   </ul>
 </section>
