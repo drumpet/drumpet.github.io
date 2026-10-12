@@ -1,0 +1,10 @@
+.DS_Store
+apaek.png
+apaek-portrait.png
+_site/
+.jekyll-cache/
+.jekyll-metadata
+vendor/
+.bundle/
+Gemfile.lock
+.superpowers/

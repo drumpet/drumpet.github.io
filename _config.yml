@@ -1,0 +1,23 @@
+title: Anthony Paek
+description: Co-founder and Executive Chairman of Lunit. Ph.D in Electrical Engineering, KAIST.
+url: https://drumpet.github.io
+permalink: /blog/:title/
+markdown: kramdown
+timezone: Asia/Seoul
+
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: post
+
+exclude:
+  - docs
+  - scripts
+  - write/test.mjs
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - node_modules

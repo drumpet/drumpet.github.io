@@ -1,0 +1,152 @@
+* { box-sizing: border-box; }
+
+html {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  color: #292524;
+  background: #fff;
+}
+
+main {
+  min-height: 100vh;
+  padding: clamp(40px, 12vh, 120px) 16px 48px;
+}
+
+section {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+p { margin: 0; }
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.portrait {
+  flex: none;
+  width: 176px;
+  height: 176px;
+  margin-left: -12px;
+  user-select: none;
+}
+
+.name {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.icon {
+  display: inline-block;
+  margin-top: 6px;
+}
+
+.icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 520px) {
+  .header {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  .portrait {
+    width: 150px;
+    height: 150px;
+    margin-left: 0;
+  }
+}
+
+/* ---- blog ---- */
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.small { font-size: 14px; line-height: 20px; }
+
+.featured {
+  display: block;
+  border: 1px solid #e7e5e4;
+  border-radius: 12px;
+  padding: 20px;
+}
+.featured:hover { border-color: #a8a29e; }
+.featured .title {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.about p { margin: 0 0 1em; }
+.about p:last-child { margin-bottom: 0; }
+.about a { text-decoration: underline; text-underline-offset: 3px; }
+
+.posts { list-style: none; margin: 0; padding: 0; }
+.posts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0efee;
+}
+.posts li a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.posts time { flex: none; font-size: 14px; }
+
+.back { font-size: 14px; color: #64748b; }
+.back a:hover { text-decoration: underline; }
+
+.post-header { margin: 16px 0 32px; }
+.post-header h1 {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.post-body { font-size: 17px; line-height: 1.75; }
+.post-body p, .post-body ul, .post-body ol, .post-body blockquote, .post-body pre, .post-body table { margin: 0 0 1.2em; }
+.post-body h2 { font-size: 22px; line-height: 30px; margin: 2em 0 0.6em; }
+.post-body h3 { font-size: 18px; line-height: 26px; margin: 1.6em 0 0.5em; }
+.post-body a { text-decoration: underline; text-underline-offset: 3px; }
+.post-body img { max-width: 100%; height: auto; border-radius: 8px; }
+.post-body blockquote { padding-left: 16px; border-left: 3px solid #e7e5e4; color: #57534e; }
+.post-body pre {
+  overflow-x: auto;
+  background: #f5f5f4;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.post-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
+.post-body :not(pre) > code { background: #f5f5f4; padding: 1px 5px; border-radius: 4px; }
+.post-body hr { border: 0; border-top: 1px solid #e7e5e4; margin: 2em 0; }
+.post + .back { margin-top: 32px; }

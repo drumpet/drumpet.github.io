@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: 'en' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% if page.title %}<title>{{ page.title }} · Anthony Paek</title>{% else %}<title>Anthony Paek | 백승욱</title>{% endif %}
+  {% assign desc = page.description | default: site.description %}
+  <meta name="description" content="{{ desc | strip_html | strip_newlines | escape }}">
+  <meta property="og:type" content="{% if page.layout == 'post' %}article{% else %}profile{% endif %}">
+  <meta property="og:title" content="{{ page.title | default: 'Anthony Paek | 백승욱' | escape }}">
+  <meta property="og:description" content="{{ desc | strip_html | strip_newlines | escape }}">
+  <meta property="og:image" content="{{ '/portrait.png' | absolute_url }}">
+  <meta property="og:url" content="{{ page.url | absolute_url }}">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+{{ content }}
+  </main>
+</body>
+</html>
