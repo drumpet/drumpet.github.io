@@ -274,6 +274,8 @@ OpenAI / 로컬 (`provider: "openai" | "local"`)
 - 대화 메시지는 `textContent`로만 넣는다. HTML로 해석하지 않는다.
 - 설정 화면의 키 입력은 `type=password`.
 - GitHub 토큰은 두 저장소 Contents 권한만. 만료 1년.
+- **같은 origin 주의.** 에디터(`/write/`)와 발행된 글은 같은 origin(`anthonypaek.com`, 그 전엔 `drumpet.github.io`)에서 서빙된다. kramdown은 본문의 raw HTML을 그대로 통과시키므로, 발행된 글에 `<script>`나 이벤트 핸들러가 들어가면 글쓴이가 자기 사이트를 열 때 localStorage의 키·토큰을 읽을 수 있다. 완화책: (1) Liquid로 출력하는 제목·설명은 모두 `escape`, (2) 발행 전에 본문에서 `<script`, `<iframe`, `on*=`, `javascript:` 패턴을 찾으면 확인을 받는다, (3) AI 응답이나 붙여넣은 텍스트에서 온 HTML은 미리보기(sandbox)에서는 실행되지 않으니 눈으로 안 보인다는 점을 기억한다. 근본 해결은 에디터를 별도 origin(예: `write.anthonypaek.com`)에서 서빙하는 것이며, 필요해지면 별도 작업으로 한다.
+- 미리보기 라이브러리 `marked`는 jsDelivr에서 **버전을 고정**해 불러오고, 미리보기를 열 때 지연 로드한다. CDN이 죽어도 에디터 자체는 뜬다.
 
 ## 6. 도메인 연결
 
