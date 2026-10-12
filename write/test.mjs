@@ -92,3 +92,76 @@ test('buildSystemPrompt mentions the protocol', () => {
 test('todayISO format', () => {
   assert.match(todayISO(), /^\d{4}-\d{2}-\d{2}$/);
 });
+
+import { buildAnthropicRequest, buildOpenAIRequest, sseData, streamChat } from './providers.js';
+
+const msgs = [{ role: 'user', content: 'hi' }];
+
+test('buildAnthropicRequest: headers and body', () => {
+  const r = buildAnthropicRequest({ apiKey: 'k', model: 'claude-opus-5-5' }, 'SYS', msgs);
+  assert.equal(r.url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(r.headers['x-api-key'], 'k');
+  assert.equal(r.headers['anthropic-version'], '2023-06-01');
+  assert.equal(r.headers['anthropic-dangerous-direct-browser-access'], 'true');
+  assert.equal(r.headers['anthropic-beta'], 'server-side-fallback-2026-07-01');
+  assert.deepEqual(r.body, { model: 'claude-opus-5-5', max_tokens: 16000, stream: true, system: 'SYS', messages: msgs, fallbacks: 'default' });
+  assert.equal(r.body.thinking, undefined);
+});
+
+test('buildOpenAIRequest: system goes into messages, bearer header, trailing slash trimmed', () => {
+  const r = buildOpenAIRequest({ apiKey: 'k', model: 'm', baseUrl: 'https://api.openai.com/v1/' }, 'SYS', msgs);
+  assert.equal(r.url, 'https://api.openai.com/v1/chat/completions');
+  assert.equal(r.headers.authorization, 'Bearer k');
+  assert.deepEqual(r.body, { model: 'm', stream: true, messages: [{ role: 'system', content: 'SYS' }, ...msgs] });
+});
+
+test('buildOpenAIRequest: no authorization header when key empty (local)', () => {
+  const r = buildOpenAIRequest({ apiKey: '', model: 'llama3', baseUrl: 'http://localhost:11434/v1' }, 'S', msgs);
+  assert.equal(r.headers.authorization, undefined);
+  assert.equal(r.url, 'http://localhost:11434/v1/chat/completions');
+});
+
+function streamOf(...chunks) {
+  const enc = new TextEncoder();
+  return new ReadableStream({
+    start(c) { for (const ch of chunks) c.enqueue(enc.encode(ch)); c.close(); },
+  });
+}
+
+test('sseData yields data payloads across chunk boundaries', async () => {
+  const out = [];
+  for await (const d of sseData(streamOf('event: x\ndata: {"a":1}\n\nda', 'ta: [DONE]\n\n'))) out.push(d);
+  assert.deepEqual(out, ['{"a":1}', '[DONE]']);
+});
+
+test('streamChat parses anthropic events', async () => {
+  const body = streamOf(
+    'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hel"}}\n\n',
+    'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"lo"}}\n\n',
+    'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+  );
+  const seen = [];
+  const fetchImpl = async () => new Response(body, { status: 200 });
+  const r = await streamChat({ provider: 'anthropic', settings: { apiKey: 'k', model: 'm' }, system: 'S', messages: msgs, onText: (t) => seen.push(t), fetchImpl });
+  assert.deepEqual(seen, ['Hel', 'Hello']);
+  assert.deepEqual(r, { text: 'Hello', stop: 'end' });
+});
+
+test('streamChat parses openai events and length stop', async () => {
+  const body = streamOf(
+    'data: {"choices":[{"delta":{"content":"A"}}]}\n\n',
+    'data: {"choices":[{"delta":{"content":"B"},"finish_reason":"length"}]}\n\n',
+    'data: [DONE]\n\n',
+  );
+  const fetchImpl = async () => new Response(body, { status: 200 });
+  const r = await streamChat({ provider: 'local', settings: { apiKey: '', model: 'm', baseUrl: 'http://x/v1' }, system: 'S', messages: msgs, onText: () => {}, fetchImpl });
+  assert.deepEqual(r, { text: 'AB', stop: 'length' });
+});
+
+test('streamChat throws with status on HTTP error', async () => {
+  const fetchImpl = async () => new Response('{"error":{"message":"bad key"}}', { status: 401 });
+  await assert.rejects(
+    streamChat({ provider: 'anthropic', settings: { apiKey: 'k', model: 'm' }, system: 'S', messages: msgs, onText: () => {}, fetchImpl }),
+    (e) => e.status === 401 && /bad key/.test(e.message),
+  );
+});
