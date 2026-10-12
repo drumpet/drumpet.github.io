@@ -165,3 +165,70 @@ test('streamChat throws with status on HTTP error', async () => {
     (e) => e.status === 401 && /bad key/.test(e.message),
   );
 });
+
+import { createGitHub, encodeContent, decodeContent } from './github.js';
+
+test('encode/decode content round trips UTF-8', () => {
+  const s = '한글 and emoji 🎉\n---\n';
+  assert.equal(decodeContent(encodeContent(s)), s);
+  assert.equal(decodeContent('7ZWc6riAIGFuZCBlbW9qaSDwn46J\nCi0tLQo='), s);
+});
+
+function fakeFetch(handlers) {
+  const calls = [];
+  const f = async (url, init = {}) => {
+    const method = init.method || 'GET';
+    calls.push({ method, url, body: init.body ? JSON.parse(init.body) : null });
+    const h = handlers.shift();
+    if (!h) throw new Error('unexpected call ' + method + ' ' + url);
+    return new Response(h.body === undefined ? null : JSON.stringify(h.body), { status: h.status });
+  };
+  f.calls = calls;
+  return f;
+}
+
+test('getFile returns null on 404 and decoded content on 200', async () => {
+  const f = fakeFetch([{ status: 404, body: {} }, { status: 200, body: { sha: 'abc', content: encodeContent('hi') } }]);
+  const gh = createGitHub('t', f);
+  assert.equal(await gh.getFile('o/r', 'drafts/x.md'), null);
+  assert.deepEqual(await gh.getFile('o/r', 'drafts/x.md'), { sha: 'abc', content: 'hi' });
+  assert.equal(f.calls[0].url, 'https://api.github.com/repos/o/r/contents/drafts/x.md');
+});
+
+test('putFile sends sha for existing file and retries once on 409', async () => {
+  const f = fakeFetch([
+    { status: 200, body: { sha: 'old', content: encodeContent('v1') } },   // GET
+    { status: 409, body: { message: 'conflict' } }, // PUT fails
+    { status: 200, body: { sha: 'newer', content: encodeContent('v2') } }, // GET again
+    { status: 200, body: { content: {} } },         // PUT ok
+  ]);
+  const gh = createGitHub('t', f);
+  await gh.putFile('o/r', 'drafts/x.md', 'body', 'msg');
+  assert.equal(f.calls.length, 4);
+  assert.equal(f.calls[1].body.sha, 'old');
+  assert.equal(f.calls[3].body.sha, 'newer');
+  assert.equal(f.calls[3].body.message, 'msg');
+  assert.equal(decodeContent(f.calls[3].body.content), 'body');
+});
+
+test('putFile creates without sha when missing', async () => {
+  const f = fakeFetch([{ status: 404, body: {} }, { status: 201, body: {} }]);
+  await createGitHub('t', f).putFile('o/r', 'new.md', 'x', 'm');
+  assert.equal(f.calls[1].body.sha, undefined);
+});
+
+test('listDir returns files only and [] on 404', async () => {
+  const f = fakeFetch([
+    { status: 200, body: [{ type: 'file', name: 'a.md', path: 'drafts/a.md', sha: '1' }, { type: 'dir', name: 'sub', path: 'drafts/sub', sha: '2' }] },
+    { status: 404, body: {} },
+  ]);
+  const gh = createGitHub('t', f);
+  assert.deepEqual(await gh.listDir('o/r', 'drafts'), [{ name: 'a.md', path: 'drafts/a.md', sha: '1' }]);
+  assert.deepEqual(await gh.listDir('o/r', 'nope'), []);
+});
+
+test('deleteFile is a no-op when file is missing', async () => {
+  const f = fakeFetch([{ status: 404, body: {} }]);
+  await createGitHub('t', f).deleteFile('o/r', 'gone.md', 'm');
+  assert.equal(f.calls.length, 1);
+});
