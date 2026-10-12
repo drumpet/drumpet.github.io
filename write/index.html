@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Write · Anthony Paek</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/write/app.css">
+</head>
+<body data-pane="chat" data-view="edit">
+  <header class="bar">
+    <select id="picker" title="글 선택"><option value="">글 선택…</option></select>
+    <button id="btn-new" type="button">새 글</button>
+    <button id="btn-save" type="button">저장</button>
+    <button id="btn-publish" type="button" class="primary">발행</button>
+    <span id="status" class="status"></span>
+    <span class="spacer"></span>
+    <span id="provider-label" class="muted"></span>
+    <button id="btn-settings" type="button">설정</button>
+  </header>
+
+  <div class="tabs mobile-only">
+    <button type="button" data-pane="chat">대화</button>
+    <button type="button" data-pane="draft">초안</button>
+  </div>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main class="panes">
+    <section class="pane" id="pane-chat">
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <form id="chat-form" class="chat-form">
+        <textarea id="chat-input" rows="3" placeholder="AI에게 말하기 (Enter 전송, Shift+Enter 줄바꿈)"></textarea>
+        <div class="row">
+          <button type="button" id="btn-stop" hidden>중지</button>
+          <button type="submit" id="btn-send" class="primary">보내기</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="pane" id="pane-draft">
+      <div id="meta" class="meta">
+        <label>제목 <input id="f-title" autocomplete="off"></label>
+        <label>slug <input id="f-slug" autocomplete="off" placeholder="english-words-only" pattern="[a-z0-9-]*"></label>
+        <label class="wide">description <input id="f-description" autocomplete="off" placeholder="한 줄 요약"></label>
+        <label>언어 <select id="f-lang"><option value="ko">ko</option><option value="en">en</option></select></label>
+        <label>날짜 <input id="f-date" autocomplete="off" placeholder="YYYY-MM-DD"></label>
+      </div>
+      <div class="tabs">
+        <button type="button" data-view="edit">편집</button>
+        <button type="button" data-view="preview">미리보기</button>
+        <span class="spacer"></span>
+        <button type="button" id="btn-undo" hidden>되돌리기</button>
+      </div>
+      <textarea id="body" class="body" placeholder="본문 (Markdown)"></textarea>
+      <iframe id="preview" class="preview" sandbox="" title="미리보기" hidden></iframe>
+    </section>
+  </main>
+
+  <dialog id="settings">
+    <form id="settings-form" method="dialog">
+      <h2>설정</h2>
+      <p class="hint">모든 값은 이 브라우저의 localStorage에만 저장됩니다.</p>
+
+      <label>AI 제공자
+        <select name="provider">
+          <option value="anthropic">Claude</option>
+          <option value="openai">OpenAI</option>
+          <option value="local">로컬 (Ollama / LM Studio)</option>
+        </select>
+      </label>
+
+      <fieldset data-provider="anthropic">
+        <legend>Claude</legend>
+        <label>API 키 <input type="password" name="anthropic.apiKey" autocomplete="off"></label>
+        <label>모델 <input name="anthropic.model" list="models-anthropic" autocomplete="off"><datalist id="models-anthropic"></datalist></label>
+        <p class="hint">console.anthropic.com에서 발급. Max/Team 플랜은 포함된 API 크레딧을 씁니다.</p>
+      </fieldset>
+
+      <fieldset data-provider="openai">
+        <legend>OpenAI</legend>
+        <label>API 키 <input type="password" name="openai.apiKey" autocomplete="off"></label>
+        <label>Base URL <input name="openai.baseUrl" autocomplete="off"></label>
+        <label>모델 <input name="openai.model" list="models-openai" autocomplete="off"><datalist id="models-openai"></datalist></label>
+      </fieldset>
+
+      <fieldset data-provider="local">
+        <legend>로컬</legend>
+        <label>Base URL <input name="local.baseUrl" autocomplete="off"></label>
+        <label>API 키 (선택) <input type="password" name="local.apiKey" autocomplete="off"></label>
+        <label>모델 <input name="local.model" list="models-local" autocomplete="off"><datalist id="models-local"></datalist></label>
+        <p class="hint">https 사이트에서 localhost 호출이 막히면 저장소 루트에서 <code>python3 -m http.server 8000</code>을 띄우고 <code>http://localhost:8000/write/</code>에서 여세요. Ollama는 <code>OLLAMA_ORIGINS="*"</code> 환경변수로 실행해야 합니다.</p>
+      </fieldset>
+
+      <p><button type="button" id="btn-models">모델 목록 불러오기</button> <span id="models-status" class="hint"></span></p>
+
+      <fieldset>
+        <legend>GitHub</legend>
+        <label>토큰 <input type="password" name="github.token" autocomplete="off"></label>
+        <label>사이트 저장소 <input name="github.siteRepo" autocomplete="off"></label>
+        <label>초안 저장소 <input name="github.draftsRepo" autocomplete="off"></label>
+        <label>사이트 URL <input name="github.siteUrl" autocomplete="off"></label>
+        <p class="hint">github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens. Repository access에서 위 두 저장소만 고르고 Permissions는 Contents: Read and write 만 줍니다.</p>
+      </fieldset>
+
+      <menu>
+        <button type="button" id="btn-settings-cancel">취소</button>
+        <button type="submit" class="primary">저장</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script type="module" src="/write/app.js"></script>
+</body>
+</html>
