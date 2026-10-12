@@ -228,13 +228,15 @@ async function send() {
   if (!text || state.busy) return;
   if (!isConfigured(settings)) { setStatus('설정이 필요합니다', { error: true }); openSettings(); return; }
 
+  const doc = state.doc;
+  const current = () => state.doc === doc;
   const p = activeProvider(settings);
-  const history = state.doc.chat.filter((m) => m.role !== 'system').map((m) => ({ role: m.role, content: m.content }));
-  const messages = [...history, { role: 'user', content: buildUserContent(docText(state.doc), text) }];
+  const history = doc.chat.filter((m) => m.role !== 'system').map((m) => ({ role: m.role, content: m.content }));
+  const messages = [...history, { role: 'user', content: buildUserContent(docText(doc), text) }];
 
-  state.doc.chat.push({ role: 'user', content: text });
+  doc.chat.push({ role: 'user', content: text });
   const assistant = { role: 'assistant', content: '' };
-  state.doc.chat.push(assistant);
+  doc.chat.push(assistant);
   els.chatInput.value = '';
   renderChat();
 
@@ -244,24 +246,24 @@ async function send() {
   try {
     const { text: full, stop } = await streamChat({
       provider: p.provider, settings: p, system: buildSystemPrompt(), messages, signal: state.abort.signal,
-      onText: (t) => { assistant.content = t; renderLastMessage(); },
+      onText: (t) => { assistant.content = t; if (current()) renderLastMessage(); },
     });
     assistant.content = full;
     const { draft, unclosed } = extractDraft(full);
     if (unclosed) assistant.note = '초안이 잘려 반영하지 않았습니다';
-    else if (draft !== null) { applyDraft(draft); assistant.note = '초안 갱신됨'; }
-    if (stop === 'length') addSystemLine('응답이 길이 제한으로 잘렸습니다.');
-    if (stop === 'refusal') addSystemLine('모델이 요청을 거부했습니다.');
+    else if (draft !== null && current()) { applyDraft(draft); assistant.note = '초안 갱신됨'; }
+    if (stop === 'length' && current()) addSystemLine('응답이 길이 제한으로 잘렸습니다.');
+    if (stop === 'refusal' && current()) addSystemLine('모델이 요청을 거부했습니다.');
   } catch (e) {
-    if (!assistant.content) state.doc.chat.pop();
-    if (e.name === 'AbortError') addSystemLine('중지했습니다.');
-    else addSystemLine(errorText(e), true);
+    if (!assistant.content) doc.chat.pop();
+    if (e.name === 'AbortError') doc.chat.push({ role: 'system', content: '중지했습니다.' });
+    else doc.chat.push({ role: 'system', content: errorText(e), error: true });
+    if (current()) renderChat();
   } finally {
     state.busy = false;
     state.abort = null;
     setBusy(false);
-    renderChat();
-    markDirty();
+    if (current()) { renderChat(); markDirty(); }
   }
 }
 
@@ -270,6 +272,9 @@ function setBusy(busy) {
   els.btnStop.hidden = !busy;
   els.btnSave.disabled = busy;
   els.btnPublish.disabled = busy;
+  els.picker.disabled = busy;
+  els.btnNew.disabled = busy;
+  els.btnUndo.disabled = busy;
 }
 
 // ---------- GitHub: list / load ----------
