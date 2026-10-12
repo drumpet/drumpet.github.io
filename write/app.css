@@ -20,6 +20,7 @@ button {
 }
 button:hover { background: #f5f5f4; }
 button:disabled { opacity: 0.5; cursor: default; }
+[hidden] { display: none !important; }
 button.primary { background: #292524; color: #fff; border-color: #292524; }
 button.primary:hover { background: #44403c; }
 input, select, textarea {
