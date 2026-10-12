@@ -232,3 +232,14 @@ test('deleteFile is a no-op when file is missing', async () => {
   await createGitHub('t', f).deleteFile('o/r', 'gone.md', 'm');
   assert.equal(f.calls.length, 1);
 });
+
+test('requests bypass the HTTP cache so the sha is never stale', async () => {
+  const inits = [];
+  const f = async (url, init = {}) => {
+    inits.push(init);
+    return new Response(JSON.stringify({ sha: 's', content: encodeContent('x') }), { status: 200 });
+  };
+  await createGitHub('t', f).getFile('o/r', 'drafts/x.md');
+  assert.equal(inits.length, 1);
+  assert.equal(inits[0].cache, 'no-store');
+});

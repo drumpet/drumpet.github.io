@@ -28,7 +28,7 @@ export function createGitHub(token, fetchImpl = fetch) {
 
   async function request(method, path, body) {
     const headers = body ? { ...base, 'content-type': 'application/json' } : base;
-    const res = await fetchImpl(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const res = await fetchImpl(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
     if (res.status === 404 && method === 'GET') return null;
     if (!res.ok) {
       let msg = '';
