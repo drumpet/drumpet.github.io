@@ -84,6 +84,20 @@ export function buildUserContent(draftText, userText) {
   return `<current_draft>\n${draftText}\n</current_draft>\n\n${userText}`;
 }
 
+export function buildHistory(chat) {
+  const out = [];
+  for (const m of chat) {
+    if (m.role !== 'user' && m.role !== 'assistant') continue;
+    const content = String(m.content ?? '');
+    if (!content.trim()) continue;
+    if (out.length === 0 && m.role === 'assistant') continue;
+    const last = out[out.length - 1];
+    if (last && last.role === m.role) last.content += '\n\n' + content;
+    else out.push({ role: m.role, content });
+  }
+  return out;
+}
+
 export function buildSystemPrompt() {
   return `You are a writing partner for Anthony Paek (백승욱), co-founder and Executive Chairman of Lunit, who writes a personal blog at anthonypaek.com in Korean and English.
 

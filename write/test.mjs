@@ -268,3 +268,42 @@ test('activeProvider and isConfigured', () => {
   s.github.token = '';
   assert.equal(isConfigured(s), false);
 });
+
+import { buildHistory } from './post.js';
+
+test('buildHistory drops system lines and empty assistant messages', () => {
+  const chat = [
+    { role: 'user', content: 'a' },
+    { role: 'system', content: '중지했습니다.' },
+    { role: 'assistant', content: '   ' },
+    { role: 'assistant', content: 'b' },
+  ];
+  assert.deepEqual(buildHistory(chat), [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }]);
+});
+
+test('buildHistory merges consecutive user turns with a blank line', () => {
+  const chat = [
+    { role: 'user', content: 'first' },
+    { role: 'system', content: 'error', error: true },
+    { role: 'user', content: 'second' },
+  ];
+  assert.deepEqual(buildHistory(chat), [{ role: 'user', content: 'first\n\nsecond' }]);
+});
+
+test('buildHistory drops leading assistant messages', () => {
+  const chat = [{ role: 'assistant', content: 'hello' }, { role: 'user', content: 'hi' }];
+  assert.deepEqual(buildHistory(chat), [{ role: 'user', content: 'hi' }]);
+});
+
+test('buildHistory returns a normal chat unchanged without mutating input', () => {
+  const chat = [
+    { role: 'user', content: 'q1' },
+    { role: 'assistant', content: 'a1', note: '초안 갱신됨' },
+    { role: 'user', content: 'q2' },
+  ];
+  const before = structuredClone(chat);
+  const out = buildHistory(chat);
+  assert.deepEqual(out, [{ role: 'user', content: 'q1' }, { role: 'assistant', content: 'a1' }, { role: 'user', content: 'q2' }]);
+  assert.deepEqual(chat, before);
+  assert.notEqual(out[0], chat[0]);
+});

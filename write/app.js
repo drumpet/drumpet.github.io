@@ -1,7 +1,7 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js';
 import {
   parseFrontmatter, serializePost, slugify, defaultSlug, slugFromPostPath, postFilename,
-  extractDraft, visibleText, buildUserContent, buildSystemPrompt, todayISO,
+  extractDraft, visibleText, buildUserContent, buildSystemPrompt, buildHistory, todayISO,
 } from './post.js';
 import { streamChat, listModels } from './providers.js';
 import { createGitHub } from './github.js';
@@ -231,7 +231,7 @@ async function send() {
   const doc = state.doc;
   const current = () => state.doc === doc;
   const p = activeProvider(settings);
-  const history = doc.chat.filter((m) => m.role !== 'system').map((m) => ({ role: m.role, content: m.content }));
+  const history = buildHistory(doc.chat);
   const messages = [...history, { role: 'user', content: buildUserContent(docText(doc), text) }];
 
   doc.chat.push({ role: 'user', content: text });
@@ -249,13 +249,23 @@ async function send() {
       onText: (t) => { assistant.content = t; if (current()) renderLastMessage(); },
     });
     assistant.content = full;
+    if (!full.trim()) {
+      doc.chat.pop();
+      doc.chat.push({ role: 'system', content: '빈 응답이 왔습니다. 다시 시도하세요.' });
+      if (current()) renderChat();
+      return;
+    }
     const { draft, unclosed } = extractDraft(full);
     if (unclosed) assistant.note = '초안이 잘려 반영하지 않았습니다';
     else if (draft !== null && current()) { applyDraft(draft); assistant.note = '초안 갱신됨'; }
     if (stop === 'length' && current()) addSystemLine('응답이 길이 제한으로 잘렸습니다.');
     if (stop === 'refusal' && current()) addSystemLine('모델이 요청을 거부했습니다.');
   } catch (e) {
-    if (!assistant.content) doc.chat.pop();
+    if (!assistant.content) {
+      doc.chat.pop();                       // assistant placeholder
+      doc.chat.pop();                       // the user turn that never got an answer
+      els.chatInput.value = text;
+    }
     if (e.name === 'AbortError') doc.chat.push({ role: 'system', content: '중지했습니다.' });
     else doc.chat.push({ role: 'system', content: errorText(e), error: true });
     if (current()) renderChat();
