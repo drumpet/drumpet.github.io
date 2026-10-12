@@ -30,6 +30,9 @@ const state = {
   postList: [],      // [{ name, path }] from _posts
   undo: [],
   dirty: false,
+  rev: 0,            // bumped on every edit; lets save() notice edits made while it ran
+  bufferKey: null,   // localStorage key this document's unsaved buffer was last written to
+  pickerValue: '',   // picker value of the document currently loaded
   busy: false,
   abort: null,
 };
@@ -76,6 +79,7 @@ function renderDoc() {
   els.meta.hidden = d.kind === 'about';
   els.title.value = d.fields.title || '';
   els.slug.value = d.slug || '';
+  els.slug.disabled = d.kind === 'post' && !!d.publishedPath;   // URL of a published post is fixed
   els.description.value = d.fields.description || '';
   els.lang.value = d.fields.lang || 'ko';
   els.date.value = d.fields.date || '';
@@ -144,18 +148,30 @@ function bufferKey(doc) { return `${BUFFER_PREFIX}${doc.kind}:${doc.slug || 'new
 let bufferTimer = null;
 function markDirty() {
   state.dirty = true;
+  state.rev++;
   setStatus('저장되지 않음');
   clearTimeout(bufferTimer);
   bufferTimer = setTimeout(() => {
-    try { localStorage.setItem(bufferKey(state.doc), JSON.stringify({ savedAt: Date.now(), doc: state.doc })); } catch { /* ignore */ }
+    try {
+      const key = bufferKey(state.doc);
+      if (state.bufferKey && state.bufferKey !== key) localStorage.removeItem(state.bufferKey);
+      localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), doc: state.doc }));
+      state.bufferKey = key;
+    } catch { /* ignore */ }
   }, 300);
 }
 
-function clearBuffers() {
+// Removes only the current document's buffer; other documents' unsaved work stays recoverable.
+function clearBuffer() {
   clearTimeout(bufferTimer);
-  try {
-    for (const k of Object.keys(localStorage)) if (k.startsWith(BUFFER_PREFIX)) localStorage.removeItem(k);
-  } catch { /* ignore */ }
+  try { if (state.bufferKey) localStorage.removeItem(state.bufferKey); } catch { /* ignore */ }
+  state.bufferKey = null;
+}
+
+// Called when another document becomes current: forget (but keep) the previous buffer.
+function detachBuffer() {
+  clearTimeout(bufferTimer);
+  state.bufferKey = null;
 }
 
 function latestBuffer() {
@@ -170,9 +186,9 @@ function latestBuffer() {
   return best;
 }
 
-function guardDirty(next) {
+function guardDirty(next, onCancel = () => {}) {
   if (!state.dirty) return next();
-  showBanner('저장되지 않은 변경이 있습니다. 버리고 계속할까요?', [['버리기', () => { state.dirty = false; next(); }], ['취소', () => {}]]);
+  showBanner('저장되지 않은 변경이 있습니다. 버리고 계속할까요?', [['버리기', () => { clearBuffer(); state.dirty = false; next(); }], ['취소', onCancel]]);
 }
 
 // ---------- form sync ----------
@@ -181,7 +197,7 @@ function syncFromForm() {
   const d = state.doc;
   if (d.kind === 'post') {
     d.fields.title = els.title.value;
-    d.slug = els.slug.value.trim();
+    if (!els.slug.disabled) d.slug = els.slug.value.trim();
     d.fields.description = els.description.value;
     d.fields.lang = els.lang.value;
     d.fields.date = els.date.value.trim();
@@ -349,6 +365,7 @@ async function loadSelection(value) {
   setStatus('불러오는 중…');
   try {
     let doc;
+    let loadedStatus = '불러옴';
     if (value === 'about') {
       const draft = await gh.getFile(settings.github.draftsRepo, 'drafts/about.md');
       const src = draft || (await gh.getFile(settings.github.siteRepo, '_includes/about.md'));
@@ -361,17 +378,22 @@ async function loadSelection(value) {
     } else if (value.startsWith('post:')) {
       const path = value.slice(5);
       const slug = slugFromPostPath(path);
-      const f = await gh.getFile(settings.github.siteRepo, path);
+      // A saved draft of a published post is newer than the published file (spec 5.8.7).
+      const draft = await gh.getFile(settings.github.draftsRepo, `drafts/${slug}.md`);
+      const f = draft || (await gh.getFile(settings.github.siteRepo, path));
       const { fields, body } = parseFrontmatter(f ? f.content : '');
-      doc = { kind: 'post', slug, savedSlug: null, publishedPath: path, fields: fieldsFrom(fields), body, chat: await loadChat(slug) };
+      doc = { kind: 'post', slug, savedSlug: draft ? slug : null, publishedPath: path, fields: fieldsFrom(fields), body, chat: await loadChat(slug) };
+      if (draft) loadedStatus = '초안을 불러왔습니다 (발행본보다 새 버전)';
     } else {
       return;
     }
     state.doc = doc;
     state.undo = [];
     state.dirty = false;
+    state.pickerValue = value;
+    detachBuffer();
     renderDoc();
-    setStatus('불러옴');
+    setStatus(loadedStatus);
   } catch (e) {
     setStatus('불러오기 오류: ' + e.message, { error: true });
   }
@@ -396,9 +418,14 @@ async function save() {
   const d = state.doc;
   const repo = settings.github.draftsRepo;
   const title = docTitle(d);
+  const rev = state.rev;
   state.busy = true; setBusy(true);
   setStatus('저장 중…');
   try {
+    if (d.kind === 'post' && d.savedSlug !== d.slug) {
+      // New document or renamed slug: never overwrite another draft that already uses this slug.
+      if (await gh.getFile(repo, `drafts/${d.slug}.md`)) return fail('같은 slug의 초안이 이미 있습니다. slug를 바꾸세요.');
+    }
     await gh.putFile(repo, `drafts/${d.slug}.md`, docText(d), `Save draft: ${title}`);
     await gh.putFile(repo, `drafts/${d.slug}.chat.json`, chatJSON(d), `Save chat: ${title}`);
     if (d.savedSlug && d.savedSlug !== d.slug) {
@@ -406,9 +433,13 @@ async function save() {
       await gh.deleteFile(repo, `drafts/${d.savedSlug}.chat.json`, `Rename draft: ${d.savedSlug} → ${d.slug}`);
     }
     d.savedSlug = d.slug;
-    state.dirty = false;
-    clearBuffers();
-    setStatus('저장됨');
+    if (state.rev === rev) {
+      state.dirty = false;
+      clearBuffer();
+      setStatus('저장됨');
+    } else {
+      setStatus('저장됨 (이후 변경은 아직 저장되지 않음)');
+    }
     refreshPicker().catch(() => {});
     return true;
   } catch (e) {
@@ -430,7 +461,12 @@ async function publish() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fields.date)) return fail('날짜는 YYYY-MM-DD 형식이어야 합니다');
   }
   if (!d.body.trim()) return fail('본문이 비었습니다');
+  if (!validateForSave()) return;
+  if (d.kind === 'post' && !d.publishedPath && findPublishedPath(d.slug)) {
+    return fail('같은 slug로 발행된 글이 있습니다. 글 선택에서 그 글을 열어 수정하세요.');
+  }
   if (!(await save())) return;
+  if (state.dirty) return fail('저장 중 변경이 생겼습니다. 다시 저장 후 발행하세요.');
 
   const site = settings.github.siteRepo;
   const drafts = settings.github.draftsRepo;
@@ -441,11 +477,12 @@ async function publish() {
   setStatus('발행 중…');
   try {
     await gh.putFile(site, path, docText(d), `${verb}: ${title}`);
+    d.publishedPath = path;   // set now so a retry after a later failure updates this file instead of creating another
     await gh.putFile(drafts, `archive/${d.slug}.chat.json`, chatJSON(d), `Archive chat: ${title}`);
     await gh.deleteFile(drafts, `drafts/${d.slug}.md`, `Published: ${title}`);
     await gh.deleteFile(drafts, `drafts/${d.slug}.chat.json`, `Published: ${title}`);
-    d.publishedPath = path;
     d.savedSlug = null;
+    els.slug.disabled = d.kind === 'post';
     const url = d.kind === 'about' ? `${siteUrl()}/` : `${siteUrl()}/blog/${d.slug}/`;
     setStatus(`발행됨 → ${url} (약 1분 뒤 반영)`, { url });
     refreshPicker().catch(() => {});
@@ -483,11 +520,12 @@ async function fetchModels() {
 function bind() {
   els.picker.addEventListener('change', () => {
     const v = els.picker.value;
-    guardDirty(() => loadSelection(v));
+    guardDirty(() => loadSelection(v), () => { els.picker.value = state.pickerValue; });
   });
   els.btnNew.addEventListener('click', () => guardDirty(() => {
     state.doc = newPostDoc(); state.undo = []; state.dirty = false;
-    els.picker.value = '';
+    detachBuffer();
+    state.pickerValue = ''; els.picker.value = '';
     renderDoc(); setStatus('새 글');
   }));
   els.btnSave.addEventListener('click', save);
@@ -555,7 +593,7 @@ async function init() {
   const b = latestBuffer();
   if (b && b.doc) {
     showBanner(`저장되지 않은 작업 "${docTitle(b.doc)}"이(가) 있습니다.`, [
-      ['복구', () => { state.doc = b.doc; state.undo = []; renderDoc(); markDirty(); }],
+      ['복구', () => { state.doc = b.doc; state.undo = []; state.bufferKey = b.key; renderDoc(); markDirty(); }],
       ['버리기', () => { try { localStorage.removeItem(b.key); } catch { /* ignore */ } }],
     ]);
   }
