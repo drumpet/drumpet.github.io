@@ -177,7 +177,7 @@ description: 목록·피처 카드·OG 미리보기에 쓰는 한 줄 요약
 ### 5.3 화면
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ [글 선택 ▾] [새 글] [저장] [발행]           상태 표시   [설정] │
+│ [글 선택 ▾] [새 글] [저장] [발행] [초안으로] [삭제]  상태  [설정] │
 ├───────────────────────────┬──────────────────────────────────┤
 │ 대화                       │ 제목 [            ] slug [      ] │
 │                           │ description [                 ]  │
@@ -263,6 +263,30 @@ OpenAI / 로컬 (`provider: "openai" | "local"`)
 5. 성공하면 private 저장소에서 `drafts/<slug>.md` 삭제, `drafts/<slug>.chat.json` → `archive/<slug>.chat.json`으로 이동(put 후 delete). About은 `drafts/about.md` 삭제.
 6. 글 URL(`{siteUrl}/blog/<slug>/`)을 표시하고 "GitHub Pages 빌드 후 약 1분 뒤 반영"을 안내.
 7. 발행된 글을 다시 열 때는 `archive/<slug>.chat.json`이 있으면 대화를 불러온다. 다시 저장하면 `drafts/`에 초안이 생기고 글 선택 메뉴에 초안과 발행됨 양쪽에 나타난다(초안이 우선).
+
+### 5.8a 발행 취소와 삭제 (2026-10-13 추가)
+
+헤더에 상황에 따라 보이는 버튼 둘. About 페이지에서는 둘 다 숨긴다.
+
+**`초안으로`** — `kind === 'post'`이고 `publishedPath`가 있을 때만 보인다.
+1. 배너로 확인: "사이트에서 글이 내려가고 초안으로 돌아갑니다. 계속할까요?" [초안으로] [취소].
+2. 먼저 저장(5.7)을 수행한다. 저장되지 않은 변경이 있어도 저장되므로 유실이 없다. 저장 실패 시 중단.
+3. public 저장소에서 `publishedPath` 삭제(커밋 메시지 `Unpublish: <title>`).
+4. private 저장소에서 `archive/<slug>.chat.json` 삭제(같은 메시지). 대화는 2단계에서 이미 `drafts/<slug>.chat.json`에 있다.
+5. 문서 상태: `publishedPath = null`, slug 잠금 해제. 글 선택 목록을 다시 읽고 `draft:<slug>`를 선택 상태로 둔다. 상태줄 "초안으로 되돌림 (사이트에는 약 1분 뒤 반영)".
+6. 3단계 이후 실패하면 "초안 + 발행본 공존" 상태가 되는데, 이는 5.8.7의 정상 상태(초안 우선)이므로 글이 사라지지 않는다.
+7. 다시 발행하면 `publishedPath`가 없으므로 그때의 날짜로 새 파일명이 된다(5.8.2).
+
+**`삭제`** — `kind === 'post'`이고 `publishedPath` 또는 `savedSlug`가 있을 때만 보인다. 빨간 계열(`button.danger`).
+1. 배너로 확인: "'<title>'을(를) 삭제합니다. 저장하지 않은 변경도 함께 사라집니다. (두 저장소의 git 기록에는 남습니다)" [삭제] [취소].
+2. 저장하지 않는다. 순서대로 `deleteFile`: public `publishedPath`(있을 때), private `drafts/<slug>.md`, `drafts/<slug>.chat.json`, `archive/<slug>.chat.json`. 없는 파일은 건너뛴다(`deleteFile`이 이미 그렇게 동작). 커밋 메시지 `Delete: <title>`.
+3. 성공하면 새 글 화면으로 돌아간다: 현재 문서의 localStorage 버퍼 삭제, `dirty=false`, 글 선택을 비우고 목록을 다시 읽는다. 상태줄 "삭제됨".
+4. 중간 실패 시 남은 파일은 그대로 두고 오류를 표시한다. 다시 `삭제`를 누르면 남은 것만 지워진다.
+
+**공통**
+- 두 작업 모두 `state.busy`로 잠그고 `setBusy`로 버튼을 비활성화한다. `setBusy`는 두 버튼도 함께 잠근다.
+- 확인 배너는 기존 `showBanner`를 쓴다. 휴지통·되돌리기 단계는 두지 않는다. 복구는 git(`git revert`)으로 한다.
+- GitHub 호출 순서는 순수 모듈 `write/actions.js`(`unpublishPost`, `deletePost`)에 두고 가짜 `gh`로 단위 테스트한다. `app.js`는 저장·상태 갱신·화면만 맡는다.
 
 ### 5.9 임시 저장과 복구
 - 초안 필드·본문·대화가 바뀔 때마다 localStorage `write.buffer.<slug|new>`에 저장(300ms debounce).
