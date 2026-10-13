@@ -1,6 +1,6 @@
 import {
   parseFrontmatter, serializePost, slugify, defaultSlug, slugFromPostPath, postFilename,
-  extractDraft, visibleText, buildUserContent, buildSystemPrompt, buildHistory, todayISO,
+  extractDraft, visibleText, buildUserContent, buildSystemPrompt, buildHistory, todayISO, isFutureDate,
 } from './post.js';
 import { streamChat, listModels } from './providers.js';
 import { createGitHub } from './github.js';
@@ -283,6 +283,7 @@ async function send() {
   state.busy = true;
   state.abort = new AbortController();
   setBusy(true);
+  lockEditor(true);   // a <draft> reply replaces the whole draft, so hand edits made meanwhile would be lost
   try {
     const { text: full, stop } = await streamChat({
       provider: p.provider, settings: p, system: buildSystemPrompt(), messages, signal: state.abort.signal,
@@ -313,8 +314,14 @@ async function send() {
     state.busy = false;
     state.abort = null;
     setBusy(false);
+    lockEditor(false);
     if (current()) { renderChat(); markDirty(); }
   }
+}
+
+function lockEditor(locked) {
+  for (const el of [els.title, els.slug, els.description, els.date, els.body]) el.readOnly = locked;
+  els.lang.disabled = locked;
 }
 
 function setBusy(busy) {
@@ -495,8 +502,15 @@ async function publish() {
   if (d.kind === 'post' && !d.publishedPath && findPublishedPath(d.slug)) {
     return fail('같은 slug로 발행된 글이 있습니다. 글 선택에서 그 글을 열어 수정하세요.');
   }
+  const warnings = [];
+  if (d.kind === 'post' && isFutureDate(d.fields.date)) {
+    warnings.push(`날짜(${d.fields.date})가 오늘 이후라서 그 날짜가 지난 뒤 사이트가 다시 빌드될 때까지 글이 보이지 않습니다.`);
+  }
   if (RAW_HTML_RISK.test(d.body)) {
-    showBanner('본문에 스크립트나 이벤트 핸들러로 보이는 HTML이 있습니다. 그대로 발행하면 사이트 방문자(그리고 이 에디터)의 브라우저에서 실행됩니다. 그래도 발행할까요?', [
+    warnings.push('본문에 스크립트나 이벤트 핸들러로 보이는 HTML이 있습니다. 그대로 발행하면 사이트 방문자(그리고 이 에디터)의 브라우저에서 실행됩니다.');
+  }
+  if (warnings.length) {
+    showBanner(`${warnings.join(' ')} 그래도 발행할까요?`, [
       ['발행', () => { doPublish(); }],
       ['취소', () => {}],
     ]);

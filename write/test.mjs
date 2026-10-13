@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseFrontmatter, serializePost, slugify, defaultSlug, slugFromPostPath,
-  postFilename, extractDraft, visibleText, buildUserContent, buildSystemPrompt, todayISO,
+  postFilename, extractDraft, visibleText, buildUserContent, buildSystemPrompt, todayISO, isFutureDate,
 } from './post.js';
 
 test('parseFrontmatter: basic fields and body', () => {
@@ -87,6 +87,13 @@ test('buildSystemPrompt mentions the protocol', () => {
   const s = buildSystemPrompt();
   assert.match(s, /<draft>/);
   assert.match(s, /<current_draft>/);
+});
+
+test('isFutureDate compares YYYY-MM-DD strings and ignores malformed dates', () => {
+  assert.equal(isFutureDate('2026-10-14', '2026-10-13'), true);
+  assert.equal(isFutureDate('2026-10-13', '2026-10-13'), false);
+  assert.equal(isFutureDate('2026-10-12', '2026-10-13'), false);
+  assert.equal(isFutureDate('2026-1-14', '2026-10-13'), false);
 });
 
 test('todayISO format', () => {

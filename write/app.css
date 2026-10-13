@@ -32,6 +32,7 @@ input, select, textarea {
   background: #fff;
 }
 input:focus, textarea:focus, select:focus { outline: 2px solid #a8a29e; outline-offset: 1px; }
+#pane-draft input:read-only, #pane-draft textarea:read-only, #pane-draft select:disabled { opacity: 0.6; }
 .muted { color: #64748b; }
 .hint { color: #78716c; font-size: 12px; margin: 4px 0 0; }
 .spacer { flex: 1; }

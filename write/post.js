@@ -110,6 +110,11 @@ How to work:
 - Write in the language of the draft's lang field (ko or en). Keep the author's voice: first person, direct, concrete, no filler, no hype.`;
 }
 
+// Jekyll (GitHub Pages, future: false) skips posts dated after the build, so the publish succeeds but nothing appears.
+export function isFutureDate(date, today = todayISO()) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && date > today;
+}
+
 export function todayISO() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');
