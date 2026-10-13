@@ -4,6 +4,8 @@ url: https://anthonypaek.com
 permalink: /blog/:title/
 markdown: kramdown
 timezone: Asia/Seoul
+# Cloudflare Worker that counts page views (analytics/README.md, stats at /manage/). Empty = no tracking.
+analytics_url: ""
 
 defaults:
   - scope:
@@ -15,7 +17,9 @@ defaults:
 exclude:
   - docs
   - scripts
+  - analytics
   - write/test.mjs
+  - manage/test.mjs
   - README.md
   - Gemfile
   - Gemfile.lock

@@ -1,0 +1,16 @@
+# Cloudflare Worker that collects page views for anthonypaek.com. Setup: analytics/README.md
+name = "ap-pulse"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+# Pages served from these origins may record views; the editor on these origins may read stats.
+ALLOWED_ORIGINS = "https://anthonypaek.com,https://www.anthonypaek.com,https://drumpet.github.io,http://localhost:8000,http://127.0.0.1:8000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ap-pulse"
+database_id = "REPLACE_WITH_ID_FROM_d1_create"
+
+[triggers]
+crons = ["5 15 * * *"]   # 00:05 KST: drop yesterday's salt and views older than 400 days

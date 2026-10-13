@@ -18,5 +18,13 @@
   <main>
 {{ content }}
   </main>
+{% if site.analytics_url != "" and site.analytics_url %}
+  <script>
+    // Page-view beacon (analytics/). Inline on purpose: no third-party code on this origin.
+    if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && navigator.sendBeacon) {
+      navigator.sendBeacon({{ site.analytics_url | append: '/h' | jsonify }}, JSON.stringify({ p: location.pathname, r: document.referrer }));
+    }
+  </script>
+{% endif %}
 </body>
 </html>
