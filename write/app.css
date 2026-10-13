@@ -23,6 +23,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 [hidden] { display: none !important; }
 button.primary { background: #292524; color: #fff; border-color: #292524; }
 button.primary:hover { background: #44403c; }
+button.danger { color: #b91c1c; border-color: #fca5a5; }
+button.danger:hover { background: #fef2f2; }
 input, select, textarea {
   padding: 6px 8px;
   border: 1px solid #d6d3d1;

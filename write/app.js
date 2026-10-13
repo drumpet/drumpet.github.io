@@ -4,11 +4,13 @@ import {
 } from './post.js';
 import { streamChat, listModels } from './providers.js';
 import { createGitHub } from './github.js';
+import { unpublishPost, deletePost } from './actions.js';
 import { loadSettings, saveSettings, activeProvider, isConfigured, fillForm, readForm, toggleProviderFields } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {
   picker: $('picker'), btnNew: $('btn-new'), btnSave: $('btn-save'), btnPublish: $('btn-publish'),
+  btnUnpublish: $('btn-unpublish'), btnDelete: $('btn-delete'),
   status: $('status'), providerLabel: $('provider-label'), btnSettings: $('btn-settings'), banner: $('banner'),
   messages: $('messages'), chatForm: $('chat-form'), chatInput: $('chat-input'), btnSend: $('btn-send'), btnStop: $('btn-stop'),
   meta: $('meta'), title: $('f-title'), slug: $('f-slug'), description: $('f-description'), lang: $('f-lang'), date: $('f-date'),
@@ -90,9 +92,18 @@ function renderDoc() {
   els.date.value = d.fields.date || '';
   els.body.value = d.body || '';
   els.btnUndo.hidden = state.undo.length === 0;
+  renderActions();
   els.providerLabel.textContent = `${activeProvider(settings).provider} · ${activeProvider(settings).model || '모델 없음'}`;
   renderChat();
   if (document.body.dataset.view === 'preview') renderPreview();
+}
+
+// Which of 초안으로 / 삭제 apply to the current document (spec 5.8a). Never for About.
+function renderActions() {
+  const d = state.doc;
+  const isPost = d.kind === 'post';
+  els.btnUnpublish.hidden = !(isPost && !!d.publishedPath);
+  els.btnDelete.hidden = !(isPost && !!(d.publishedPath || d.savedSlug));
 }
 
 function messageNode(m) {
@@ -311,6 +322,8 @@ function setBusy(busy) {
   els.btnStop.hidden = !busy;
   els.btnSave.disabled = busy;
   els.btnPublish.disabled = busy;
+  els.btnUnpublish.disabled = busy;
+  els.btnDelete.disabled = busy;
   els.picker.disabled = busy;
   els.btnNew.disabled = busy;
   els.btnUndo.disabled = busy;
@@ -323,12 +336,15 @@ function requireGitHub() {
   return true;
 }
 
+let pickerSeq = 0;
 async function refreshPicker() {
   if (!gh) return;
+  const seq = ++pickerSeq;
   const [drafts, posts] = await Promise.all([
     gh.listDir(settings.github.draftsRepo, 'drafts'),
     gh.listDir(settings.github.siteRepo, '_posts'),
   ]);
+  if (seq !== pickerSeq) return;   // a newer refresh is in flight; let it win
   state.postList = posts.filter((f) => f.name.endsWith('.md'));
   const draftFiles = drafts.filter((f) => f.name.endsWith('.md') && f.name !== 'about.md');
 
@@ -446,6 +462,7 @@ async function save() {
       await gh.deleteFile(repo, `drafts/${d.savedSlug}.chat.json`, `Rename draft: ${d.savedSlug} → ${d.slug}`);
     }
     d.savedSlug = d.slug;
+    renderActions();
     if (state.rev === rev) {
       state.dirty = false;
       clearBuffer();
@@ -508,11 +525,75 @@ async function doPublish() {
     await gh.deleteFile(drafts, `drafts/${d.slug}.chat.json`, `Published: ${title}`);
     d.savedSlug = null;
     els.slug.disabled = d.kind === 'post';
+    renderActions();
     const url = d.kind === 'about' ? `${siteUrl()}/` : `${siteUrl()}/blog/${d.slug}/`;
     setStatus(`발행됨 → ${url} (약 1분 뒤 반영)`, { url });
     refreshPicker().catch(() => {});
   } catch (e) {
     setStatus('발행 오류: ' + e.message, { error: true });
+  } finally {
+    state.busy = false; setBusy(false);
+  }
+}
+
+// ---------- unpublish / delete (spec 5.8a) ----------
+
+function unpublish() {
+  const d = state.doc;
+  if (state.busy || d.kind !== 'post' || !d.publishedPath || !requireGitHub()) return;
+  showBanner('사이트에서 글이 내려가고 초안으로 돌아갑니다. 계속할까요?', [
+    ['초안으로', () => { doUnpublish(); }],
+    ['취소', () => {}],
+  ]);
+}
+
+async function doUnpublish() {
+  const d = state.doc;
+  if (!(await save())) return;            // draft + chat now live in drafts/, so nothing can be lost below
+  const title = docTitle(d);
+  state.busy = true; setBusy(true);
+  setStatus('초안으로 되돌리는 중…');
+  try {
+    await unpublishPost(gh, settings.github, { slug: d.slug, publishedPath: d.publishedPath, title });
+    d.publishedPath = null;
+    els.slug.disabled = false;
+    renderActions();
+    await refreshPicker().catch(() => {});
+    state.pickerValue = `draft:${d.slug}`;
+    els.picker.value = state.pickerValue;
+    setStatus('초안으로 되돌림 (사이트에는 약 1분 뒤 반영)');
+  } catch (e) {
+    setStatus('되돌리기 오류: ' + e.message, { error: true });
+  } finally {
+    state.busy = false; setBusy(false);
+  }
+}
+
+function remove() {
+  const d = state.doc;
+  if (state.busy || d.kind !== 'post' || !(d.publishedPath || d.savedSlug) || !requireGitHub()) return;
+  showBanner(`'${docTitle(d)}'을(를) 삭제합니다. 저장하지 않은 변경도 함께 사라집니다. (두 저장소의 git 기록에는 남습니다)`, [
+    ['삭제', () => { doDelete(); }],
+    ['취소', () => {}],
+  ]);
+}
+
+async function doDelete() {
+  const d = state.doc;
+  const slug = d.savedSlug || d.slug;     // files on disk use the saved slug, not an unsaved rename
+  state.busy = true; setBusy(true);
+  setStatus('삭제 중…');
+  try {
+    await deletePost(gh, settings.github, { slug, publishedPath: d.publishedPath, title: docTitle(d) });
+    try { localStorage.removeItem(bufferKey(d)); } catch { /* ignore */ }
+    clearBuffer();
+    state.doc = newPostDoc(); state.undo = []; state.dirty = false;
+    state.pickerValue = ''; els.picker.value = '';
+    renderDoc();
+    setStatus('삭제됨');
+    await refreshPicker().catch(() => {});
+  } catch (e) {
+    setStatus('삭제 오류: ' + e.message, { error: true });
   } finally {
     state.busy = false; setBusy(false);
   }
@@ -555,6 +636,8 @@ function bind() {
   }));
   els.btnSave.addEventListener('click', save);
   els.btnPublish.addEventListener('click', publish);
+  els.btnUnpublish.addEventListener('click', unpublish);
+  els.btnDelete.addEventListener('click', remove);
   els.btnUndo.addEventListener('click', undo);
   els.btnSettings.addEventListener('click', openSettings);
   els.btnSettingsCancel.addEventListener('click', () => els.settings.close());
