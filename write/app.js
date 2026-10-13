@@ -525,7 +525,6 @@ async function doPublish() {
     await gh.deleteFile(drafts, `drafts/${d.slug}.chat.json`, `Published: ${title}`);
     d.savedSlug = null;
     els.slug.disabled = d.kind === 'post';
-    renderActions();
     const url = d.kind === 'about' ? `${siteUrl()}/` : `${siteUrl()}/blog/${d.slug}/`;
     setStatus(`발행됨 → ${url} (약 1분 뒤 반영)`, { url });
     refreshPicker().catch(() => {});
@@ -533,6 +532,7 @@ async function doPublish() {
     setStatus('발행 오류: ' + e.message, { error: true });
   } finally {
     state.busy = false; setBusy(false);
+    renderActions();
   }
 }
 
@@ -542,25 +542,31 @@ function unpublish() {
   const d = state.doc;
   if (state.busy || d.kind !== 'post' || !d.publishedPath || !requireGitHub()) return;
   showBanner('사이트에서 글이 내려가고 초안으로 돌아갑니다. 계속할까요?', [
-    ['초안으로', () => { doUnpublish(); }],
+    ['초안으로', () => { doUnpublish(d); }],
     ['취소', () => {}],
   ]);
 }
 
-async function doUnpublish() {
-  const d = state.doc;
+async function doUnpublish(d) {
+  if (state.doc !== d) return fail('다른 글이 열려 있어 취소했습니다. 다시 시도하세요.');
+  if (state.busy) return fail('다른 작업이 진행 중입니다. 끝난 뒤 다시 시도하세요.');
   if (!(await save())) return;            // draft + chat now live in drafts/, so nothing can be lost below
   const title = docTitle(d);
   state.busy = true; setBusy(true);
   setStatus('초안으로 되돌리는 중…');
   try {
-    await unpublishPost(gh, settings.github, { slug: d.slug, publishedPath: d.publishedPath, title });
+    const publishedPath = d.publishedPath;
+    await unpublishPost(gh, settings.github, { slug: d.slug, publishedPath, title });
+    state.postList = state.postList.filter((f) => f.path !== publishedPath);   // listing may lag; drop locally
     d.publishedPath = null;
     els.slug.disabled = false;
     renderActions();
     await refreshPicker().catch(() => {});
-    state.pickerValue = `draft:${d.slug}`;
-    els.picker.value = state.pickerValue;
+    const v = `draft:${d.slug}`;
+    if ([...els.picker.options].some((o) => o.value === v)) {
+      state.pickerValue = v;
+      els.picker.value = v;
+    }
     setStatus('초안으로 되돌림 (사이트에는 약 1분 뒤 반영)');
   } catch (e) {
     setStatus('되돌리기 오류: ' + e.message, { error: true });
@@ -573,18 +579,21 @@ function remove() {
   const d = state.doc;
   if (state.busy || d.kind !== 'post' || !(d.publishedPath || d.savedSlug) || !requireGitHub()) return;
   showBanner(`'${docTitle(d)}'을(를) 삭제합니다. 저장하지 않은 변경도 함께 사라집니다. (두 저장소의 git 기록에는 남습니다)`, [
-    ['삭제', () => { doDelete(); }],
+    ['삭제', () => { doDelete(d); }],
     ['취소', () => {}],
   ]);
 }
 
-async function doDelete() {
-  const d = state.doc;
+async function doDelete(d) {
+  if (state.doc !== d) return fail('다른 글이 열려 있어 취소했습니다. 다시 시도하세요.');
+  if (state.busy) return fail('다른 작업이 진행 중입니다. 끝난 뒤 다시 시도하세요.');
   const slug = d.savedSlug || d.slug;     // files on disk use the saved slug, not an unsaved rename
   state.busy = true; setBusy(true);
   setStatus('삭제 중…');
   try {
-    await deletePost(gh, settings.github, { slug, publishedPath: d.publishedPath, title: docTitle(d) });
+    const publishedPath = d.publishedPath;
+    await deletePost(gh, settings.github, { slug, publishedPath, title: docTitle(d) });
+    state.postList = state.postList.filter((f) => f.path !== publishedPath);   // listing may lag; drop locally
     try { localStorage.removeItem(bufferKey(d)); } catch { /* ignore */ }
     clearBuffer();
     state.doc = newPostDoc(); state.undo = []; state.dirty = false;
