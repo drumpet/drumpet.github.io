@@ -538,6 +538,12 @@ async function doPublish() {
 
 // ---------- unpublish / delete (spec 5.8a) ----------
 
+// Forget a deleted _posts entry so findPublishedPath cannot see it. Called before and after the
+// picker refresh: the contents listing can lag a DELETE briefly, and the refresh may fail.
+function dropPost(path) {
+  if (path) state.postList = state.postList.filter((f) => f.path !== path);
+}
+
 function unpublish() {
   const d = state.doc;
   if (state.busy || d.kind !== 'post' || !d.publishedPath || !requireGitHub()) return;
@@ -557,11 +563,12 @@ async function doUnpublish(d) {
   try {
     const publishedPath = d.publishedPath;
     await unpublishPost(gh, settings.github, { slug: d.slug, publishedPath, title });
-    state.postList = state.postList.filter((f) => f.path !== publishedPath);   // listing may lag; drop locally
+    dropPost(publishedPath);
     d.publishedPath = null;
     els.slug.disabled = false;
     renderActions();
     await refreshPicker().catch(() => {});
+    dropPost(publishedPath);
     const v = `draft:${d.slug}`;
     if ([...els.picker.options].some((o) => o.value === v)) {
       state.pickerValue = v;
@@ -593,7 +600,7 @@ async function doDelete(d) {
   try {
     const publishedPath = d.publishedPath;
     await deletePost(gh, settings.github, { slug, publishedPath, title: docTitle(d) });
-    state.postList = state.postList.filter((f) => f.path !== publishedPath);   // listing may lag; drop locally
+    dropPost(publishedPath);
     try { localStorage.removeItem(bufferKey(d)); } catch { /* ignore */ }
     clearBuffer();
     state.doc = newPostDoc(); state.undo = []; state.dirty = false;
@@ -601,6 +608,7 @@ async function doDelete(d) {
     renderDoc();
     setStatus('삭제됨');
     await refreshPicker().catch(() => {});
+    dropPost(publishedPath);
   } catch (e) {
     setStatus('삭제 오류: ' + e.message, { error: true });
   } finally {
