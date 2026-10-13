@@ -1,1 +1,1 @@
-I'm the Co-founder and Executive Chairman of Lunit, an AI company on a mission to advance healthcare. I work closely with our leadership team on long-term strategy and the decisions that shape our future.
+I like building things. Sometimes it’s a product, sometimes a team, sometimes an entire company. I’m still figuring out how to build something that lasts. I believe great companies are built over decades, not quarters. Lunit is where I’ve chosen to spend mine.
