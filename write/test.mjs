@@ -307,3 +307,59 @@ test('buildHistory returns a normal chat unchanged without mutating input', () =
   assert.deepEqual(chat, before);
   assert.notEqual(out[0], chat[0]);
 });
+
+// ---------- actions.js ----------
+import { unpublishPost, deletePost } from './actions.js';
+
+function fakeGh(failOn = null) {
+  const calls = [];
+  return {
+    calls,
+    async deleteFile(repo, path, message) {
+      calls.push([repo, path, message]);
+      if (failOn && path === failOn) throw new Error('boom');
+    },
+  };
+}
+const REPOS = { siteRepo: 'o/site', draftsRepo: 'o/drafts' };
+const HELLO = { slug: 'hello', publishedPath: '_posts/2026-10-12-hello.md', title: 'Hi' };
+
+test('unpublishPost deletes the site file, then the archived chat', async () => {
+  const gh = fakeGh();
+  await unpublishPost(gh, REPOS, HELLO);
+  assert.deepEqual(gh.calls, [
+    ['o/site', '_posts/2026-10-12-hello.md', 'Unpublish: Hi'],
+    ['o/drafts', 'archive/hello.chat.json', 'Unpublish: Hi'],
+  ]);
+});
+
+test('unpublishPost stops when the site delete fails, leaving the archive untouched', async () => {
+  const gh = fakeGh('_posts/2026-10-12-hello.md');
+  await assert.rejects(unpublishPost(gh, REPOS, HELLO), /boom/);
+  assert.equal(gh.calls.length, 1);
+});
+
+test('deletePost removes site file, draft, draft chat, archived chat in that order', async () => {
+  const gh = fakeGh();
+  await deletePost(gh, REPOS, HELLO);
+  assert.deepEqual(gh.calls, [
+    ['o/site', '_posts/2026-10-12-hello.md', 'Delete: Hi'],
+    ['o/drafts', 'drafts/hello.md', 'Delete: Hi'],
+    ['o/drafts', 'drafts/hello.chat.json', 'Delete: Hi'],
+    ['o/drafts', 'archive/hello.chat.json', 'Delete: Hi'],
+  ]);
+});
+
+test('deletePost never touches the site repo for an unpublished draft', async () => {
+  const gh = fakeGh();
+  await deletePost(gh, REPOS, { slug: 'wip', publishedPath: null, title: 'W' });
+  assert.deepEqual(gh.calls.map((c) => c[0] + ':' + c[1]), [
+    'o/drafts:drafts/wip.md', 'o/drafts:drafts/wip.chat.json', 'o/drafts:archive/wip.chat.json',
+  ]);
+});
+
+test('deletePost stops at the first failure so a retry can remove the rest', async () => {
+  const gh = fakeGh('drafts/hello.md');
+  await assert.rejects(deletePost(gh, REPOS, HELLO), /boom/);
+  assert.equal(gh.calls.length, 2);
+});
