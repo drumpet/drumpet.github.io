@@ -573,6 +573,9 @@ async function doUnpublish(d) {
     if ([...els.picker.options].some((o) => o.value === v)) {
       state.pickerValue = v;
       els.picker.value = v;
+    } else {
+      state.pickerValue = '';   // the old post:<path> entry no longer exists; don't restore it on cancel
+      els.picker.value = '';
     }
     setStatus('초안으로 되돌림 (사이트에는 약 1분 뒤 반영)');
   } catch (e) {
@@ -611,6 +614,7 @@ async function doDelete(d) {
     dropPost(publishedPath);
   } catch (e) {
     setStatus('삭제 오류: ' + e.message, { error: true });
+    refreshPicker().catch(() => {});   // the site file may already be gone; don't keep offering it
   } finally {
     state.busy = false; setBusy(false);
   }

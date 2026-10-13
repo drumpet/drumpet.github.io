@@ -339,6 +339,12 @@ test('unpublishPost stops when the site delete fails, leaving the archive untouc
   assert.equal(gh.calls.length, 1);
 });
 
+test('unpublishPost rejects after the site delete when the archive delete fails (retry path)', async () => {
+  const gh = fakeGh('archive/hello.chat.json');
+  await assert.rejects(unpublishPost(gh, REPOS, HELLO), /boom/);
+  assert.deepEqual(gh.calls.map((c) => c[1]), ['_posts/2026-10-12-hello.md', 'archive/hello.chat.json']);
+});
+
 test('deletePost removes site file, draft, draft chat, archived chat in that order', async () => {
   const gh = fakeGh();
   await deletePost(gh, REPOS, HELLO);
